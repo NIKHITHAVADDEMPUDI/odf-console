@@ -29,7 +29,10 @@ const selectOptions = (
   forceLean: boolean,
   osdAmount: number,
   architecture?: string,
-  enableNFS?: boolean
+  enableNFS?: boolean,
+  disableUnsupportedProfiles?: boolean,
+  clusterCpu?: number,
+  clusterMemoryGiB?: number
 ) =>
   Object.entries(ResourceProfile).map((value: [string, ResourceProfile]) => {
     const displayName = t('{{mode}} mode', { mode: value[0] });
@@ -41,9 +44,19 @@ const selectOptions = (
       enableNFS
     );
     const description = `CPUs required: ${minCpu}, Memory required: ${minMem} GiB`;
-    const isDisabled =
-      forceLean &&
-      [ResourceProfile.Balanced, ResourceProfile.Performance].includes(profile);
+    const isDisabled = disableUnsupportedProfiles
+      ? !isResourceProfileAllowed(
+          profile,
+          clusterCpu,
+          clusterMemoryGiB,
+          osdAmount,
+          architecture,
+          enableNFS
+        )
+      : forceLean &&
+        [ResourceProfile.Balanced, ResourceProfile.Performance].includes(
+          profile
+        );
     return (
       <SelectOption
         key={profile}
@@ -72,11 +85,22 @@ type ProfileRequirementsTextProps = {
   osdAmount: number;
   architecture?: string;
   enableNFS?: boolean;
+  variant?: 'wizard' | 'inline';
+  clusterCpu?: number;
+  clusterMemoryGiB?: number;
 };
 
 export const ProfileRequirementsText: React.FC<
   ProfileRequirementsTextProps
-> = ({ selectedProfile, osdAmount, architecture, enableNFS }) => {
+> = ({
+  selectedProfile,
+  osdAmount,
+  architecture,
+  enableNFS,
+  variant = 'wizard',
+  clusterCpu,
+  clusterMemoryGiB,
+}) => {
   const { t } = useCustomTranslation();
   const { minCpu, minMem } = getResourceProfileRequirements(
     selectedProfile,
@@ -84,6 +108,47 @@ export const ProfileRequirementsText: React.FC<
     architecture,
     enableNFS
   );
+
+  if (variant === 'inline') {
+    return (
+      <Content>
+        <Content
+          component={ContentVariants.p}
+          id="resource-requirements"
+          className="pf-v6-u-mt-2xl"
+        >
+          <span className="pf-v6-u-mr-sm">
+            {t('Aggregated resource requirements:')}
+          </span>
+          <span className="pf-v6-u-font-weight-bold">
+            {minCpu} {t('CPUs')}
+          </span>{' '}
+          {t('and')}{' '}
+          <span className="pf-v6-u-font-weight-bold">
+            {minMem} {t('GiB RAM')}
+          </span>
+          {selectedProfile === ResourceProfile.Performance && (
+            <FieldLevelHelp>{resourceRequirementsTooltip(t)}</FieldLevelHelp>
+          )}
+        </Content>
+        {clusterCpu !== undefined && clusterMemoryGiB !== undefined && (
+          <Content component={ContentVariants.p} className="pf-v6-u-mt-sm">
+            <span className="pf-v6-u-mr-sm">
+              {t('Cluster resources available:')}
+            </span>
+            <span className="pf-v6-u-font-weight-bold">
+              {clusterCpu} {t('CPUs')}
+            </span>{' '}
+            {t('and')}{' '}
+            <span className="pf-v6-u-font-weight-bold">
+              {clusterMemoryGiB} {t('GiB RAM')}
+            </span>
+          </Content>
+        )}
+      </Content>
+    );
+  }
+
   return (
     <Content>
       <Content id="resource-requirements" component={ContentVariants.h4}>
@@ -127,19 +192,30 @@ type ConfigurePerformanceProps = {
   resourceProfile: ResourceProfile;
   headerText?: React.FC;
   profileRequirementsText?: React.FC<ProfileRequirementsTextProps>;
+  profileRequirementsVariant?: ProfileRequirementsTextProps['variant'];
+  clusterCpu?: number;
+  clusterMemoryGiB?: number;
   selectedNodes: WizardNodeState[];
   osdAmount?: number;
   enableNFS?: boolean;
+  showDescription?: boolean;
+  disableUnsupportedProfiles?: boolean;
 };
 
 const ConfigurePerformance: React.FC<ConfigurePerformanceProps> = ({
   onResourceProfileChange,
   resourceProfile,
   headerText: HeaderTextComponent,
-  profileRequirementsText: ProfileRequirementsTextComponent,
+  profileRequirementsText:
+    ProfileRequirementsTextComponent = ProfileRequirementsText,
+  profileRequirementsVariant = 'wizard',
+  clusterCpu,
+  clusterMemoryGiB,
   selectedNodes,
   osdAmount,
   enableNFS,
+  showDescription = true,
+  disableUnsupportedProfiles = false,
 }) => {
   const { t } = useCustomTranslation();
   const [availableNodes, availableNodesLoaded, availableNodesLoadError] =
@@ -167,7 +243,11 @@ const ConfigurePerformance: React.FC<ConfigurePerformanceProps> = ({
       forceLean = true;
     }
   }
-  if (forceLean === true && resourceProfile !== ResourceProfile.Lean) {
+  if (
+    !disableUnsupportedProfiles &&
+    forceLean === true &&
+    resourceProfile !== ResourceProfile.Lean
+  ) {
     onResourceProfileChange(ResourceProfile.Lean);
   }
 
@@ -183,22 +263,27 @@ const ConfigurePerformance: React.FC<ConfigurePerformanceProps> = ({
         enableNFS
       )
     : true;
-  const validated =
-    selectedNodes.length === 0 || isProfileAllowed ? 'default' : 'error';
+  const validated = disableUnsupportedProfiles
+    ? 'default'
+    : selectedNodes.length === 0 || isProfileAllowed
+      ? 'default'
+      : 'error';
 
   return (
     <div className="pf-v6-u-mb-lg">
       <Content className="pf-v6-u-mb-md">
         {HeaderTextComponent && <HeaderTextComponent />}
-        <Content
-          component="p"
-          id="configure-performance-desc"
-          className="pf-v6-u-font-size-sm pf-v6-u-disabled-color-100"
-        >
-          {t(
-            'Select a profile to customise the performance of the Data Foundation cluster to meet your requirements.'
-          )}
-        </Content>
+        {showDescription && (
+          <Content
+            component="p"
+            id="configure-performance-desc"
+            className="pf-v6-u-font-size-sm pf-v6-u-disabled-color-100"
+          >
+            {t(
+              'Select a profile to customise the performance of the Data Foundation cluster to meet your requirements.'
+            )}
+          </Content>
+        )}
       </Content>
       <SingleSelectDropdown
         aria-label={t('Select a performance mode from the list')}
@@ -210,17 +295,23 @@ const ConfigurePerformance: React.FC<ConfigurePerformanceProps> = ({
           forceLean,
           osdAmount,
           architecture,
-          enableNFS
+          enableNFS,
+          disableUnsupportedProfiles,
+          clusterCpu,
+          clusterMemoryGiB
         )}
         onChange={onResourceProfileChange}
         validated={validated}
       />
-      {resourceProfile && ProfileRequirementsTextComponent && (
+      {resourceProfile && (
         <ProfileRequirementsTextComponent
           selectedProfile={resourceProfile}
           osdAmount={osdAmount}
           architecture={architecture}
           enableNFS={enableNFS}
+          variant={profileRequirementsVariant}
+          clusterCpu={clusterCpu}
+          clusterMemoryGiB={clusterMemoryGiB}
         />
       )}
     </div>
