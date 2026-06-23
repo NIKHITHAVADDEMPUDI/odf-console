@@ -1,5 +1,8 @@
 import * as React from 'react';
+import { isConfigurePerformanceProfileVisible } from '@odf/core/components/configure-performance-profiles/utils';
 import { LSO_OPERATOR } from '@odf/core/constants';
+import { PROVIDER_MODE } from '@odf/core/features';
+import { useODFSystemFlagsSelector } from '@odf/core/redux';
 import {
   useGetExternalClusterDetails,
   useGetInternalClusterDetails,
@@ -26,7 +29,10 @@ import {
   isCSVSucceeded,
   referenceForModel,
 } from '@odf/shared/utils';
-import { useK8sWatchResource } from '@openshift-console/dynamic-plugin-sdk';
+import {
+  useFlag,
+  useK8sWatchResource,
+} from '@openshift-console/dynamic-plugin-sdk';
 import { TFunction } from 'react-i18next';
 import { EmptyState, EmptyStateBody } from '@patternfly/react-core';
 import { CubesIcon } from '@patternfly/react-icons';
@@ -38,7 +44,9 @@ const storageClusterActions =
     storageCluster: StorageClusterKind,
     infrastructure: InfrastructureKind,
     isLSOInstalled: boolean,
-    isExternalMode: boolean
+    isExternalMode: boolean,
+    isProviderMode: boolean,
+    isNoobaaAvailable: boolean
   ) =>
   () => {
     const resourceProfile = storageCluster?.spec?.resourceProfile;
@@ -50,14 +58,6 @@ const storageClusterActions =
         value: t('Add Capacity'),
         component: React.lazy(
           () => import('../../modals/add-capacity/add-capacity-modal')
-        ),
-      });
-      customKebabItems.push({
-        key: 'CONFIGURE_PERFORMANCE',
-        value: t('Configure performance'),
-        component: React.lazy(
-          () =>
-            import('@odf/core/modals/configure-performance/configure-performance-modal')
         ),
       });
       if (isCapacityAutoScalingAllowed(platform, resourceProfile)) {
@@ -79,6 +79,22 @@ const storageClusterActions =
           )}/${getName(storageCluster)}/~attachstorage`,
         });
       }
+    }
+    if (
+      isConfigurePerformanceProfileVisible({
+        storageCluster,
+        hasExternalMode: isExternalMode,
+        isProviderMode,
+        isNoobaaAvailable,
+      })
+    ) {
+      customKebabItems.push({
+        key: 'CONFIGURE_PERFORMANCE',
+        value: t('Configure performance profiles'),
+        redirect: `/odf/system/ns/${getNamespace(storageCluster)}/${referenceForModel(
+          StorageClusterModel
+        )}/${getName(storageCluster)}/~configureperformanceprofile`,
+      });
     }
     return (
       <Kebab
@@ -128,10 +144,14 @@ const StorageClusterSection: React.FC = () => {
   );
 
   const externalClusterDetails = useGetExternalClusterDetails();
+  const isProviderMode = useFlag(PROVIDER_MODE);
+  const { systemFlags } = useODFSystemFlagsSelector();
   const isLSOInstalled =
     lsoCSVLoaded && !lsoCSVLoadError && isCSVSucceeded(lsoCSV);
 
   const hasExternalMode = externalClusterDetails.clusterName !== '';
+  const isNoobaaAvailable =
+    !!systemFlags[getNamespace(currentStorageCluster)]?.isNoobaaAvailable;
   const hasInternalMode = selectedCluster.clusterName !== '';
   const noStorageClusters = !hasExternalMode && !hasInternalMode;
 
@@ -148,7 +168,9 @@ const StorageClusterSection: React.FC = () => {
           currentStorageCluster,
           infrastructure,
           isLSOInstalled,
-          hasExternalMode
+          hasExternalMode,
+          isProviderMode,
+          isNoobaaAvailable
         )}
       />
       <OCSSystemDashboard />

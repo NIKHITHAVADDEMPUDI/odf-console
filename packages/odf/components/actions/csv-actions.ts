@@ -1,8 +1,10 @@
 import { useMemo } from 'react';
+import { isConfigurePerformanceProfileVisible } from '@odf/core/components/configure-performance-profiles/utils';
 import { LSO_OPERATOR } from '@odf/core/constants';
 import AddCapacityModal from '@odf/core/modals/add-capacity/add-capacity-modal';
 import CapacityAutoscalingModal from '@odf/core/modals/capacity-autoscaling/capacity-autoscaling-modal';
-import ConfigurePerformanceModal from '@odf/core/modals/configure-performance/configure-performance-modal';
+import { useODFSystemFlagsSelector } from '@odf/core/redux';
+import { useGetExternalClusterDetails } from '@odf/core/redux/utils';
 import { isCapacityAutoScalingAllowed } from '@odf/core/utils';
 import {
   DEFAULT_INFRASTRUCTURE,
@@ -48,6 +50,9 @@ export const useCsvActions = ({
   );
   const launchModal = useModalWrapper();
   const isProviderMode = useFlag(PROVIDER_MODE);
+  const { systemFlags } = useODFSystemFlagsSelector();
+  const externalClusterDetails = useGetExternalClusterDetails();
+  const hasExternalMode = externalClusterDetails.clusterName !== '';
   const [csv, csvLoaded, csvLoadError] = useFetchCsv({
     specName: LSO_OPERATOR,
   });
@@ -69,10 +74,16 @@ export const useCsvActions = ({
       isOCSStorageSystem(resource)
     ) {
       items.push(AddCapacityStorageSystem(launchModal, storageCluster));
-      if (!isProviderMode) {
-        items.push(
-          ConfigurePerformanceStorageSystem(launchModal, storageCluster)
-        );
+      if (
+        isConfigurePerformanceProfileVisible({
+          storageCluster,
+          hasExternalMode,
+          isProviderMode,
+          isNoobaaAvailable:
+            !!systemFlags[resource.spec.namespace]?.isNoobaaAvailable,
+        })
+      ) {
+        items.push(ConfigurePerformanceStorageSystem(storageCluster));
       }
       if (
         isCapacityAutoScalingAllowed(
@@ -93,6 +104,8 @@ export const useCsvActions = ({
     launchModal,
     infrastructure,
     isProviderMode,
+    hasExternalMode,
+    systemFlags,
     isLSOInstalled,
     resourceProfile,
     storageCluster,
@@ -133,18 +146,17 @@ const AddCapacityStorageSystem = (
 };
 
 const ConfigurePerformanceStorageSystem = (
-  launchModal: LaunchModal,
   storageCluster: StorageClusterKind
 ): Action => {
   return {
     id: 'configure-performance-storage-system',
-    label: 'Configure performance',
+    label: 'Configure performance profiles',
     insertAfter: 'add-capacity-storage-system',
-    cta: () => {
-      launchModal(ConfigurePerformanceModal, {
-        extraProps: { storageCluster },
-        isOpen: true,
-      });
+    cta: {
+      href: `/odf/system/ns/${getNamespace(storageCluster)}/${referenceForModel(
+        StorageClusterModel
+      )}/${getName(storageCluster)}/~configureperformanceprofile`,
+      external: false,
     },
   };
 };
