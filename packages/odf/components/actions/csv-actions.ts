@@ -1,8 +1,14 @@
 import { useMemo } from 'react';
-import { LSO_OPERATOR } from '@odf/core/constants';
+import { isConfigurePerformanceProfileVisible } from '@odf/core/components/configure-performance-profiles/utils';
+import {
+  getAttachStorageRoute,
+  getConfigurePerformanceProfileRoute,
+  LSO_OPERATOR,
+} from '@odf/core/constants';
 import AddCapacityModal from '@odf/core/modals/add-capacity/add-capacity-modal';
 import CapacityAutoscalingModal from '@odf/core/modals/capacity-autoscaling/capacity-autoscaling-modal';
-import ConfigurePerformanceModal from '@odf/core/modals/configure-performance/configure-performance-modal';
+import { useODFSystemFlagsSelector } from '@odf/core/redux';
+import { useGetExternalClusterDetails } from '@odf/core/redux/utils';
 import { isCapacityAutoScalingAllowed } from '@odf/core/utils';
 import {
   DEFAULT_INFRASTRUCTURE,
@@ -48,6 +54,9 @@ export const useCsvActions = ({
   );
   const launchModal = useModalWrapper();
   const isProviderMode = useFlag(PROVIDER_MODE);
+  const { systemFlags } = useODFSystemFlagsSelector();
+  const externalClusterDetails = useGetExternalClusterDetails();
+  const hasExternalMode = externalClusterDetails.clusterName !== '';
   const [csv, csvLoaded, csvLoadError] = useFetchCsv({
     specName: LSO_OPERATOR,
   });
@@ -69,10 +78,16 @@ export const useCsvActions = ({
       isOCSStorageSystem(resource)
     ) {
       items.push(AddCapacityStorageSystem(launchModal, storageCluster));
-      if (!isProviderMode) {
-        items.push(
-          ConfigurePerformanceStorageSystem(launchModal, storageCluster)
-        );
+      if (
+        isConfigurePerformanceProfileVisible({
+          storageCluster,
+          hasExternalMode,
+          isProviderMode,
+          isNoobaaAvailable:
+            !!systemFlags[resource.spec.namespace]?.isNoobaaAvailable,
+        })
+      ) {
+        items.push(ConfigurePerformanceStorageSystem(storageCluster));
       }
       if (
         isCapacityAutoScalingAllowed(
@@ -93,6 +108,8 @@ export const useCsvActions = ({
     launchModal,
     infrastructure,
     isProviderMode,
+    hasExternalMode,
+    systemFlags,
     isLSOInstalled,
     resourceProfile,
     storageCluster,
@@ -107,9 +124,7 @@ const AttachStorageStorageSystem = (resource: StorageSystemKind): Action => {
     label: 'Attach Storage',
     insertBefore: 'add-capacity-storage-system',
     cta: {
-      href: `/odf/system/ns/${getNamespace(resource)}/${referenceForModel(
-        StorageClusterModel
-      )}/${getName(resource)}/~attachstorage`,
+      href: getAttachStorageRoute(getNamespace(resource), getName(resource)),
       external: false,
     },
   };
@@ -133,18 +148,18 @@ const AddCapacityStorageSystem = (
 };
 
 const ConfigurePerformanceStorageSystem = (
-  launchModal: LaunchModal,
   storageCluster: StorageClusterKind
 ): Action => {
   return {
     id: 'configure-performance-storage-system',
-    label: 'Configure performance',
+    label: 'Configure performance profiles',
     insertAfter: 'add-capacity-storage-system',
-    cta: () => {
-      launchModal(ConfigurePerformanceModal, {
-        extraProps: { storageCluster },
-        isOpen: true,
-      });
+    cta: {
+      href: getConfigurePerformanceProfileRoute(
+        getNamespace(storageCluster),
+        getName(storageCluster)
+      ),
+      external: false,
     },
   };
 };

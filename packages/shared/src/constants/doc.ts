@@ -45,3 +45,6 @@ export const externalSystemsDoc = (odfDocVersion: string): string =>
 
 export const tnfHomePage = (odfDocVersion: string): string =>
   `${ocpDocHome(odfDocVersion)}/installing_a_two_node_openshift_cluster/two-node-with-fencing`;
+
+export const scalingStorageDoc = (odfDocVersion: string): string =>
+  `${odfDocBasePath(odfDocVersion)}/scaling_storage/index`;
