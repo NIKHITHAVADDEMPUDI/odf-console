@@ -24,8 +24,8 @@ import {
   submitCoreStorageProfile,
 } from './core-storage-section';
 import {
-  ObjectAccessSection,
-  submitObjectAccessProfile,
+  McgPerformanceSection,
+  submitMcgPerformanceProfile,
 } from './multicloud-object-gateway-section';
 import {
   configurePerformanceProfileReducer,
@@ -37,8 +37,8 @@ import {
   isConfigurePerformanceProfileVisible,
   isCoreStorageSectionVisible,
   isCoreStorageSaveDisabled,
-  isObjectAccessSaveDisabled,
-  isObjectAccessSectionVisible,
+  isMcgPerformanceSaveDisabled,
+  isMcgPerformanceSectionVisible,
 } from './utils';
 import './configure-performance-profile.scss';
 
@@ -70,17 +70,19 @@ const ConfigurePerformanceProfile: React.FC = () => {
     isNoobaaAvailable: !!systemFlags[namespace]?.isNoobaaAvailable,
   };
   const showCoreStorage = isCoreStorageSectionVisible(visibility);
-  const showObjectAccess = isObjectAccessSectionVisible(visibility) && false; // will remove false once MCG object access profile is implemented
+  const showMcgPerformance = isMcgPerformanceSectionVisible(visibility);
   const showConfigurePerformance =
     isConfigurePerformanceProfileVisible(visibility);
   const { clusterNodes, nodesLoaded, nodesLoadError } = useClusterNodes();
 
   const isLoaded =
-    areFlagsLoaded && storageClusterLoaded && (!showCoreStorage || nodesLoaded);
+    areFlagsLoaded &&
+    storageClusterLoaded &&
+    (!(showCoreStorage || showMcgPerformance) || nodesLoaded);
   const isLoadError =
     flagsLoadError ||
     storageClusterLoadError ||
-    (showCoreStorage && !!nodesLoadError);
+    ((showCoreStorage || showMcgPerformance) && !!nodesLoadError);
 
   React.useEffect(() => {
     if (!isLoaded || isLoadError || showConfigurePerformance) {
@@ -101,7 +103,7 @@ const ConfigurePerformanceProfile: React.FC = () => {
   const onClose = () => navigate(-1);
 
   const onConfirm = async () => {
-    if (checkRequiredValues(state, showCoreStorage, showObjectAccess)) {
+    if (checkRequiredValues(state, showCoreStorage, showMcgPerformance)) {
       return;
     }
 
@@ -125,8 +127,15 @@ const ConfigurePerformanceProfile: React.FC = () => {
           nodes: clusterNodes,
         });
       }
-      if (showObjectAccess && !isObjectAccessSaveDisabled()) {
-        await submitObjectAccessProfile();
+      if (
+        showMcgPerformance &&
+        !isMcgPerformanceSaveDisabled(state.mcgPerformanceProfile)
+      ) {
+        await submitMcgPerformanceProfile({
+          storageCluster,
+          mcgPerformanceProfile: state.mcgPerformanceProfile,
+          nodes: clusterNodes,
+        });
       }
       onClose();
     } catch (error) {
@@ -191,13 +200,20 @@ const ConfigurePerformanceProfile: React.FC = () => {
             clusterNodes={clusterNodes}
           />
         )}
-        {showObjectAccess && <ObjectAccessSection />}
+        {showMcgPerformance && (
+          <McgPerformanceSection
+            state={state}
+            dispatch={dispatch}
+            storageCluster={storageCluster}
+            clusterNodes={clusterNodes}
+          />
+        )}
       </div>
       <div className="odf-m-pane__body configure-performance-profile__footer">
         <ConfigurePerformanceProfileFormFooter
           state={state}
           showCoreStorage={showCoreStorage}
-          showObjectAccess={showObjectAccess}
+          showMcgPerformance={showMcgPerformance}
           cancel={onClose}
           onConfirm={onConfirm}
         />

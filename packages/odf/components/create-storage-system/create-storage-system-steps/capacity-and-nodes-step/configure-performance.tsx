@@ -22,6 +22,7 @@ import { FieldLevelHelp } from '@odf/shared/generic/FieldLevelHelp';
 import { useCustomTranslation } from '@odf/shared/useCustomTranslationHook';
 import { TFunction } from 'react-i18next';
 import { Content, ContentVariants, SelectOption } from '@patternfly/react-core';
+import { InlineResourceRequirementsText } from './inline-resource-requirements-text';
 import './configure-performance.scss';
 
 const selectOptions = (
@@ -111,41 +112,17 @@ export const ProfileRequirementsText: React.FC<
 
   if (variant === 'inline') {
     return (
-      <Content>
-        <Content
-          component={ContentVariants.p}
-          id="resource-requirements"
-          className="pf-v6-u-mt-2xl"
-        >
-          <span className="pf-v6-u-mr-sm">
-            {t('Aggregated resource requirements:')}
-          </span>
-          <span className="pf-v6-u-font-weight-bold">
-            {minCpu} {t('CPUs')}
-          </span>{' '}
-          {t('and')}{' '}
-          <span className="pf-v6-u-font-weight-bold">
-            {minMem} {t('GiB RAM')}
-          </span>
-          {selectedProfile === ResourceProfile.Performance && (
+      <InlineResourceRequirementsText
+        minCpu={minCpu}
+        minMem={minMem}
+        clusterCpu={clusterCpu}
+        clusterMemoryGiB={clusterMemoryGiB}
+        helpText={
+          selectedProfile === ResourceProfile.Performance ? (
             <FieldLevelHelp>{resourceRequirementsTooltip(t)}</FieldLevelHelp>
-          )}
-        </Content>
-        {clusterCpu !== undefined && clusterMemoryGiB !== undefined && (
-          <Content component={ContentVariants.p} className="pf-v6-u-mt-sm">
-            <span className="pf-v6-u-mr-sm">
-              {t('Cluster resources available:')}
-            </span>
-            <span className="pf-v6-u-font-weight-bold">
-              {clusterCpu} {t('CPUs')}
-            </span>{' '}
-            {t('and')}{' '}
-            <span className="pf-v6-u-font-weight-bold">
-              {clusterMemoryGiB} {t('GiB RAM')}
-            </span>
-          </Content>
-        )}
-      </Content>
+          ) : undefined
+        }
+      />
     );
   }
 

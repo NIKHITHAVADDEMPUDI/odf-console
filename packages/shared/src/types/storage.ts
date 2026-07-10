@@ -103,6 +103,7 @@ export type StorageClusterKind = K8sResourceCommon & {
     monDataDirHostPath?: string;
     multiCloudGateway?: {
       reconcileStrategy?: string;
+      performanceProfile?: string;
       dbStorageClassName?: string;
       externalPgConfig?: {
         pgSecretName?: string;

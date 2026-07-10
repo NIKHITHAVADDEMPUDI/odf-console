@@ -13,11 +13,12 @@ import { checkRequiredValues } from './utils';
 export const ConfigurePerformanceProfileFormFooter = (
   props: ConfigurePerformanceProfileFormFooterProps
 ) => {
-  const { state, cancel, onConfirm, showCoreStorage, showObjectAccess } = props;
+  const { state, cancel, onConfirm, showCoreStorage, showMcgPerformance } =
+    props;
   const { t } = useCustomTranslation();
   const { inProgress, errorMessage } = state;
   const isDisabled =
-    checkRequiredValues(state, showCoreStorage, showObjectAccess) ||
+    checkRequiredValues(state, showCoreStorage, showMcgPerformance) ||
     inProgress ||
     !!errorMessage;
 
@@ -49,7 +50,7 @@ export const ConfigurePerformanceProfileFormFooter = (
 type ConfigurePerformanceProfileFormFooterProps = {
   state: ConfigurePerformanceProfileFormState;
   showCoreStorage: boolean;
-  showObjectAccess: boolean;
+  showMcgPerformance: boolean;
   cancel: () => void;
   onConfirm: () => void;
 };

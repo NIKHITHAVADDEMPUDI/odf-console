@@ -1,4 +1,4 @@
-import { ResourceProfile } from '@odf/core/types';
+import { McgPerformanceProfile, ResourceProfile } from '@odf/core/types';
 import { StorageClusterKind } from '@odf/shared';
 import { ConfigurePerformanceProfileFormState } from './state';
 
@@ -16,7 +16,7 @@ export const isCoreStorageSectionVisible = ({
 }: ConfigurePerformanceProfileVisibility): boolean =>
   !!storageCluster && !hasExternalMode && !isProviderMode;
 
-export const isObjectAccessSectionVisible = ({
+export const isMcgPerformanceSectionVisible = ({
   isNoobaaAvailable,
 }: Pick<ConfigurePerformanceProfileVisibility, 'isNoobaaAvailable'>): boolean =>
   isNoobaaAvailable;
@@ -25,31 +25,21 @@ export const isConfigurePerformanceProfileVisible = (
   visibility: ConfigurePerformanceProfileVisibility
 ): boolean =>
   isCoreStorageSectionVisible(visibility) ||
-  isObjectAccessSectionVisible(visibility);
+  isMcgPerformanceSectionVisible(visibility);
 
 export const isCoreStorageSaveDisabled = (
   resourceProfile: ResourceProfile | null
 ): boolean => !resourceProfile;
 
-export const isObjectAccessSaveDisabled = (): boolean => true;
+export const isMcgPerformanceSaveDisabled = (
+  mcgPerformanceProfile: McgPerformanceProfile | null
+): boolean => !mcgPerformanceProfile;
 
 export const checkRequiredValues = (
   state: ConfigurePerformanceProfileFormState,
   showCoreStorage: boolean,
-  showObjectAccess: boolean
-): boolean => {
-  const coreStorageDisabled = showCoreStorage
-    ? isCoreStorageSaveDisabled(state.resourceProfile)
-    : true;
-  const objectAccessDisabled = showObjectAccess
-    ? isObjectAccessSaveDisabled()
-    : true;
-
-  if (showCoreStorage && showObjectAccess) {
-    return coreStorageDisabled && objectAccessDisabled;
-  }
-  if (showCoreStorage) {
-    return coreStorageDisabled;
-  }
-  return objectAccessDisabled;
-};
+  showMcgPerformance: boolean
+): boolean =>
+  (showCoreStorage && isCoreStorageSaveDisabled(state.resourceProfile)) ||
+  (showMcgPerformance &&
+    isMcgPerformanceSaveDisabled(state.mcgPerformanceProfile));
